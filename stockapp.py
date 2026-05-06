@@ -1,21 +1,13 @@
+import streamlit as st
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 import time
 import matplotlib.pyplot as plt
-import matplotlib.font_manager as fm
 
-# ------------------------
-# 1. 폰트 설정 (한글 깨짐 해결)
-# ------------------------
-font_path = "/usr/share/fonts/truetype/nanum/NanumGothic.ttf"
-font_name = fm.FontProperties(fname=font_path).get_name()
-plt.rc('font', family=font_name)
-plt.rcParams['axes.unicode_minus'] = False
+st.title("📊 My Stock Portfolio")
 
-# ------------------------
-# 2. 종목 정보 (수정 가능)
-# ------------------------
+# 기존 그대로 유지
 stocks = {
     "Samsung": "005930",
     "SK hynix": "000660",
@@ -26,7 +18,6 @@ stocks = {
     "Ace Tech": "088800"
 }
 
-# 내가 산 가격
 buy_prices = {
     "Samsung": 50800,
     "SK hynix": 570000,
@@ -37,7 +28,6 @@ buy_prices = {
     "Ace Tech": 2485
 }
 
-# 보유 수량
 shares = {
     "Samsung": 5,
     "SK hynix": 1,
@@ -48,9 +38,6 @@ shares = {
     "Ace Tech": 100
 }
 
-# ------------------------
-# 3. 현재가 크롤링 함수
-# ------------------------
 def get_price(code):
     url = f"https://finance.naver.com/item/main.nhn?code={code}"
     headers = {"User-Agent": "Mozilla/5.0"}
@@ -59,70 +46,32 @@ def get_price(code):
     soup = BeautifulSoup(res.text, "html.parser")
     
     price = soup.select_one("p.no_today span.blind")
-    
-    if price:
-        return int(price.text.replace(",", ""))
-    else:
-        return None
+    return int(price.text.replace(",", "")) if price else None
 
-# ------------------------
-# 4. 데이터 수집
-# ------------------------
 result = []
 
 for name, code in stocks.items():
     price = get_price(code)
-    
-    result.append({
-        "종목": name,
-        "현재가": price
-    })
-    
-    time.sleep(1)
+    result.append({"종목": name, "현재가": price})
+    time.sleep(0.5)
 
-df = pd.DataFrame(result)
+df = pd.DataFrame(result).dropna()
 
-# ------------------------
-# 5. 포트폴리오 계산
-# ------------------------
 df['매수가'] = df['종목'].map(buy_prices)
 df['보유수량'] = df['종목'].map(shares)
-
 df['평가금액'] = df['현재가'] * df['보유수량']
 df['투자금액'] = df['매수가'] * df['보유수량']
-
 df['수익금'] = df['평가금액'] - df['투자금액']
 df['수익률(%)'] = (df['수익금'] / df['투자금액']) * 100
 
-# 정렬
 df = df.sort_values(by="수익률(%)", ascending=False)
 
-print(df)
+# 👉 여기부터가 핵심
+st.dataframe(df)
 
-# ------------------------
-# 6. 그래프 (수익/손실 색상)
-# ------------------------
 colors = ['blue' if x > 0 else 'red' for x in df['수익률(%)']]
 
-plt.figure(figsize=(10,5))
-plt.bar(df['종목'], df['수익률(%)'], color=colors)
+fig, ax = plt.subplots()
+ax.bar(df['종목'], df['수익률(%)'], color=colors)
 
-plt.title("rate of return")
-plt.xlabel("Stock")
-plt.ylabel("rate (%)")
-
-plt.xticks(rotation=45)
-plt.show()
-
-# ------------------------
-# 7. 총 자산 요약
-# ------------------------
-total_invest = df['투자금액'].sum()
-total_value = df['평가금액'].sum()
-total_return = total_value - total_invest
-total_rate = (total_return / total_invest) * 100
-
-print("\n📊 총 투자금:", total_invest)
-print("📊 현재 자산:", total_value)
-print("📊 총 수익:", total_return)
-print(f"📊 총 수익률: {total_rate:.2f}%")
+st.pyplot(fig)
