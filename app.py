@@ -5,9 +5,8 @@ import pandas as pd
 import time
 import matplotlib.pyplot as plt
 
-st.title("📊 My Stock Portfolio")
+st.title("📊 Stock Portfolio")
 
-# 기존 그대로 유지
 stocks = {
     "Samsung": "005930",
     "SK hynix": "000660",
@@ -38,6 +37,7 @@ shares = {
     "Ace Tech": 100
 }
 
+@st.cache_data(ttl=300)
 def get_price(code):
     url = f"https://finance.naver.com/item/main.nhn?code={code}"
     headers = {"User-Agent": "Mozilla/5.0"}
@@ -66,12 +66,21 @@ df['수익률(%)'] = (df['수익금'] / df['투자금액']) * 100
 
 df = df.sort_values(by="수익률(%)", ascending=False)
 
-# 👉 여기부터가 핵심
+# 👉 핵심 출력
 st.dataframe(df)
 
 colors = ['blue' if x > 0 else 'red' for x in df['수익률(%)']]
 
 fig, ax = plt.subplots()
 ax.bar(df['종목'], df['수익률(%)'], color=colors)
+ax.set_title("Return (%)")
 
 st.pyplot(fig)
+
+# 👉 요약
+total_invest = df['투자금액'].sum()
+total_value = df['평가금액'].sum()
+total_rate = (total_value - total_invest) / total_invest * 100
+
+st.metric("총 자산", f"{total_value:,}원")
+st.metric("수익률", f"{total_rate:.2f}%")
